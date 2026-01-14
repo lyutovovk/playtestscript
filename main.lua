@@ -1,4 +1,5 @@
--- PLAYTEST SCRIPT [α1.0.5]
+-- PLAYTEST SCRIPT [α1.0.6]
+-- REWORKED FOR STABILITY
 local OWNER_ID = 8816493943 
 local TARGET_USERNAME = "derWolfderwutet"
 
@@ -10,33 +11,47 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local profileLink = "https://www.roblox.com/users/" .. OWNER_ID .. "/profile"
 
--- 1. STRICT FOLLOW CHECK (ID-BASED)
+-- 1. STRENGTHENED FOLLOW CHECK
 local function checkFollowing()
-    -- Bypass for you, the owner
     if player.UserId == OWNER_ID then return true end
     
     local success, result = pcall(function()
-        -- This API checks if the current player follows your specific ID
-        local url = "https://friends.roproxy.com/v1/users/" .. player.UserId .. "/friends/statuses?userIds=" .. OWNER_ID
-        local response = game:HttpGet(url)
-        local data = HttpService:JSONDecode(response)
+        -- Method A: Check Relationship Status (Fastest)
+        local url1 = "https://friends.roproxy.com/v1/users/" .. player.UserId .. "/friends/statuses?userIds=" .. OWNER_ID
+        local res1 = game:HttpGet(url1)
+        local data1 = HttpService:JSONDecode(res1)
         
-        -- Returns true only if a relationship (following) is found
-        return (data and data.data and #data.data > 0)
+        if data1 and data1.data and #data1.data > 0 then
+            return true
+        end
+
+        -- Method B: Check Recent Followers (Backup)
+        local url2 = "https://friends.roproxy.com/v1/users/" .. OWNER_ID .. "/followers?limit=20&sortOrder=Desc"
+        local res2 = game:HttpGet(url2)
+        local data2 = HttpService:JSONDecode(res2)
+
+        if data2 and data2.data then
+            for _, follower in pairs(data2.data) do
+                if follower.id == player.UserId then return true end
+            end
+        end
+        
+        return false
     end)
     
     return success and result or false
 end
 
--- 2. SMOOTH UI ANIMATIONS
+-- 2. UI UTILS
 local function smoothPop(obj, targetSize)
     obj.Size = UDim2.new(0, 0, 0, 0)
     TweenService:Create(obj, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Size = targetSize}):Play()
 end
 
--- 3. MAIN MENU (ACCESS GRANTED)
+-- 3. MAIN MENU
 local function LoadMainMenu()
     local sg = Instance.new("ScreenGui", game.CoreGui)
+    sg.Name = "PlaytestGui"
     local f = Instance.new("Frame", sg)
     f.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     f.Position = UDim2.new(0.5, -105, 0.5, -130)
@@ -47,7 +62,7 @@ local function LoadMainMenu()
     local t = Instance.new("TextLabel", f)
     t.Size = UDim2.new(1, 0, 0, 40)
     t.BackgroundColor3 = Color3.fromRGB(100, 0, 180)
-    t.Text = "PLAYTEST SCRIPT"
+    t.Text = "PLAYTEST v1.0.6"
     t.TextColor3 = Color3.fromRGB(255, 255, 255)
     t.Font = Enum.Font.GothamBold
     Instance.new("UICorner", t)
@@ -63,7 +78,7 @@ local function LoadMainMenu()
         btn.MouseButton1Click:Connect(function() cb(btn) end)
     end
 
-    -- AGGRESSIVE AUTO TREATS
+    -- REWORKED AUTO TREATS (Scans Workspace better)
     b("Auto Treats: OFF", UDim2.new(0.075, 0, 0.25, 0), function(btn)
         _G.Collect = not _G.Collect
         btn.Text = _G.Collect and "Auto Treats: ON" or "Auto Treats: OFF"
@@ -74,12 +89,9 @@ local function LoadMainMenu()
                 pcall(function()
                     for _, v in pairs(Workspace:GetDescendants()) do
                         if not _G.Collect then break end
-                        if v.Name:find("Treat") and (v:IsA("BasePart") or v:IsA("Model")) then
-                            local target = v:IsA("Model") and (v.PrimaryPart or v:FindFirstChildWhichIsA("BasePart")) or v
-                            if target and player.Character then
-                                player.Character.HumanoidRootPart.CFrame = target.CFrame
-                                task.wait(0.3)
-                            end
+                        if (v.Name:find("Treat") or v.Name:find("Bone")) and v:IsA("BasePart") then
+                            player.Character.HumanoidRootPart.CFrame = v.CFrame
+                            task.wait(0.2)
                         end
                     end
                 end)
@@ -88,17 +100,18 @@ local function LoadMainMenu()
         end)
     end)
 
-    b("Troll Speed", UDim2.new(0.075, 0, 0.45, 0), function() player.Character.Humanoid.WalkSpeed = 120 end)
+    b("Speed (100)", UDim2.new(0.075, 0, 0.45, 0), function() player.Character.Humanoid.WalkSpeed = 100 end)
     b("Teleport Shop", UDim2.new(0.075, 0, 0.65, 0), function() 
-        local sP = Workspace:FindFirstChild("ShopPart", true) or Workspace:FindFirstChild("Shop", true)
-        if sP then player.Character.HumanoidRootPart.CFrame = sP.CFrame + Vector3.new(0,3,0) end
+        local shop = Workspace:FindFirstChild("Shop", true) or Workspace:FindFirstChild("Store", true)
+        if shop then player.Character.HumanoidRootPart.CFrame = shop:GetModelCFrame() or shop.CFrame end
     end)
 
     smoothPop(f, UDim2.new(0, 210, 0, 260))
-    f.Draggable, f.Active = true, true
+    f.Draggable = true
+    f.Active = true
 end
 
--- 4. VERIFICATION SCREEN (ACCESS DENIED)
+-- 4. VERIFICATION SCREEN
 local function ShowVerify()
     local sg = Instance.new("ScreenGui", game.CoreGui)
     local f = Instance.new("Frame", sg)
@@ -110,46 +123,32 @@ local function ShowVerify()
 
     local t = Instance.new("TextLabel", f)
     t.Size = UDim2.new(1, 0, 0, 60)
-    t.Text = "Follow " .. TARGET_USERNAME .. "\nto Unlock Access"
+    t.Text = "ACCESS DENIED\nFollow " .. TARGET_USERNAME
     t.TextColor3 = Color3.fromRGB(255, 255, 255)
     t.BackgroundTransparency = 1
     t.Font = Enum.Font.GothamBold
 
-    local c1 = Instance.new("TextButton", f)
-    c1.Size = UDim2.new(0.8, 0, 0, 35)
-    c1.Position = UDim2.new(0.1, 0, 0.4, 0)
-    c1.Text = "Copy Profile Link"
-    c1.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
-    c1.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Instance.new("UICorner", c1)
-
     local v1 = Instance.new("TextButton", f)
-    v1.Size = UDim2.new(0.8, 0, 0, 35)
-    v1.Position = UDim2.new(0.1, 0, 0.65, 0)
+    v1.Size = UDim2.new(0.8, 0, 0, 45)
+    v1.Position = UDim2.new(0.1, 0, 0.5, 0)
     v1.Text = "Verify Follow"
     v1.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
     v1.TextColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new("UICorner", v1)
 
-    c1.MouseButton1Click:Connect(function() 
-        if setclipboard then setclipboard(profileLink) end
-        c1.Text = "Link Copied!" 
-    end)
-    
     v1.MouseButton1Click:Connect(function()
-        v1.Text = "Verifying..."
-        task.wait(1.5)
+        v1.Text = "Checking..."
         if checkFollowing() then 
             sg:Destroy() 
             LoadMainMenu() 
         else
-            v1.Text = "Follow Not Found!"
-            task.wait(1.5) 
-            v1.Text = "Verify Follow" 
+            v1.Text = "Failed! Follow & Wait 10s"
+            task.wait(2)
+            v1.Text = "Verify Follow"
         end
     end)
     smoothPop(f, UDim2.new(0, 250, 0, 180))
 end
 
--- Run Check
+-- Launch
 if checkFollowing() then LoadMainMenu() else ShowVerify() end
