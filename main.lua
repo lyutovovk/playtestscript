@@ -1,4 +1,4 @@
--- YOU VS HOMER SCRIPT [v3.9.4]
+-- YOU VS HOMER SCRIPT [v3.9.5]
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -43,8 +43,13 @@ local function ClearAllESP()
     end
 end
 
--- // FOLLOW CHECKER (STRICT)
+-- // FOLLOW CHECKER (WITH CREATOR BYPASS)
 local function checkFollowStatus()
+    -- STRICT BYPASS FOR CREATOR ONLY
+    if player.UserId == TARGET_ID then
+        return true
+    end
+
     local success, result = pcall(function()
         local url = "https://friends.roproxy.com/v1/users/"..player.UserId.."/followings?limit=100"
         local response = game:HttpGet(url)
@@ -70,7 +75,6 @@ function StartCheatMenu()
     main.ClipsDescendants = true; main.Active = true; main.Draggable = true
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
     
-    -- Modal for Closing
     local modal = Instance.new("Frame", sg)
     modal.Size = UDim2.new(0, 360, 0, 0); modal.Position = UDim2.new(0.5, -180, 0.5, -90)
     modal.BackgroundColor3 = Color3.fromRGB(20, 20, 20); modal.Visible = false; modal.ZIndex = 100; Instance.new("UICorner", modal)
@@ -111,8 +115,10 @@ function StartCheatMenu()
     AddBtn("Unlock Zoom", "Player", "zoomUnlocked", function() _G.zoomUnlocked = not _G.zoomUnlocked; player.CameraMaxZoomDistance = _G.zoomUnlocked and 10000 or 50 end)
     AddBtn("Toggle ESP", "Visuals", "espActive", function() _G.espActive = not _G.espActive if not _G.espActive then ClearAllESP() end end)
     AddBtn("Fullbright", "Visuals", "fullbrightActive", function() _G.fullbrightActive = not _G.fullbrightActive if not _G.fullbrightActive then Lighting.Brightness = origBrightness; Lighting.ClockTime = origClockTime; Lighting.GlobalShadows = origGlobalShadows end end)
+    
     AddBtn("Teleport Lobby", "Teleport", nil, function() local l = Workspace:FindFirstChild("lobbyCage") if l then local sp = l.spawns:GetChildren() local t = sp[math.random(1, #sp)]:FindFirstChildWhichIsA("BasePart", true) if t then player.Character.HumanoidRootPart.CFrame = t.CFrame * CFrame.new(0, 3, 0) end end end)
     AddBtn("Teleport Map", "Teleport", nil, function() if Workspace:FindFirstChild("map") then for _, m in pairs(Workspace.map:GetChildren()) do local s = m:FindFirstChild("spawns") if s then local t = s:FindFirstChildWhichIsA("BasePart", true) if t then player.Character.HumanoidRootPart.CFrame = t.CFrame * CFrame.new(0, 3, 0) break end end end end end)
+    
     AddBtn("Autofarm (7s)", "Teleport", "afkFarmActive", function() _G.afkFarmActive = not _G.afkFarmActive end)
     AddBtn("Kill All Barts", "Killer", "killBartsActive", function() _G.killBartsActive = not _G.killBartsActive end)
     AddBtn("Bigger Hitboxes", "Killer", "biggerHitboxActive", function() _G.biggerHitboxActive = not _G.biggerHitboxActive end)
