@@ -1,4 +1,4 @@
--- PLAYTEST SCRIPT [α1.0.2]
+-- PLAYTEST SCRIPT [α1.0.5]
 local OWNER_ID = 8816493943 
 local TARGET_USERNAME = "derWolfderwutet"
 
@@ -9,32 +9,32 @@ local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local profileLink = "https://www.roblox.com/users/" .. OWNER_ID .. "/profile"
-local retryCount = 0
 
--- 1. PROXY FOLLOW CHECK
+-- 1. STRICT FOLLOW CHECK (ID-BASED)
 local function checkFollowing()
+    -- Bypass for you, the owner
     if player.UserId == OWNER_ID then return true end
+    
     local success, result = pcall(function()
-        local url = "https://friends.roproxy.com/v1/users/" .. OWNER_ID .. "/followers?limit=15&sortOrder=Desc"
+        -- This API checks if the current player follows your specific ID
+        local url = "https://friends.roproxy.com/v1/users/" .. player.UserId .. "/friends/statuses?userIds=" .. OWNER_ID
         local response = game:HttpGet(url)
         local data = HttpService:JSONDecode(response)
-        if data and data.data then
-            for _, follower in pairs(data.data) do
-                if follower.id == player.UserId then return true end
-            end
-        end
-        return false
+        
+        -- Returns true only if a relationship (following) is found
+        return (data and data.data and #data.data > 0)
     end)
+    
     return success and result or false
 end
 
--- 2. SMOOTH ANIMATIONS
+-- 2. SMOOTH UI ANIMATIONS
 local function smoothPop(obj, targetSize)
     obj.Size = UDim2.new(0, 0, 0, 0)
     TweenService:Create(obj, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Size = targetSize}):Play()
 end
 
--- 3. MAIN MENU LOADER
+-- 3. MAIN MENU (ACCESS GRANTED)
 local function LoadMainMenu()
     local sg = Instance.new("ScreenGui", game.CoreGui)
     local f = Instance.new("Frame", sg)
@@ -63,45 +63,42 @@ local function LoadMainMenu()
         btn.MouseButton1Click:Connect(function() cb(btn) end)
     end
 
+    -- AGGRESSIVE AUTO TREATS
     b("Auto Treats: OFF", UDim2.new(0.075, 0, 0.25, 0), function(btn)
         _G.Collect = not _G.Collect
         btn.Text = _G.Collect and "Auto Treats: ON" or "Auto Treats: OFF"
         btn.BackgroundColor3 = _G.Collect and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(180, 50, 50)
+        
         task.spawn(function()
             while _G.Collect do
-                local treats = Workspace:FindFirstChild("SpawnedDogTreats", true)
-                if treats then
-                    for _, tr in pairs(treats:GetChildren()) do
+                pcall(function()
+                    for _, v in pairs(Workspace:GetDescendants()) do
                         if not _G.Collect then break end
-                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            player.Character.HumanoidRootPart.CFrame = tr.CFrame
+                        if v.Name:find("Treat") and (v:IsA("BasePart") or v:IsA("Model")) then
+                            local target = v:IsA("Model") and (v.PrimaryPart or v:FindFirstChildWhichIsA("BasePart")) or v
+                            if target and player.Character then
+                                player.Character.HumanoidRootPart.CFrame = target.CFrame
+                                task.wait(0.3)
+                            end
                         end
-                        task.wait(0.2)
                     end
-                end
-                task.wait(0.5)
+                end)
+                task.wait(0.1)
             end
         end)
     end)
 
-    b("Troll Speed", UDim2.new(0.075, 0, 0.45, 0), function() 
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.WalkSpeed = 120 
-        end
-    end)
-    
+    b("Troll Speed", UDim2.new(0.075, 0, 0.45, 0), function() player.Character.Humanoid.WalkSpeed = 120 end)
     b("Teleport Shop", UDim2.new(0.075, 0, 0.65, 0), function() 
-        local sP = Workspace:FindFirstChild("ShopPart", true)
-        if sP and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then 
-            player.Character.HumanoidRootPart.CFrame = sP.CFrame + Vector3.new(0,3,0) 
-        end
+        local sP = Workspace:FindFirstChild("ShopPart", true) or Workspace:FindFirstChild("Shop", true)
+        if sP then player.Character.HumanoidRootPart.CFrame = sP.CFrame + Vector3.new(0,3,0) end
     end)
 
     smoothPop(f, UDim2.new(0, 210, 0, 260))
     f.Draggable, f.Active = true, true
 end
 
--- 4. VERIFICATION MENU
+-- 4. VERIFICATION SCREEN (ACCESS DENIED)
 local function ShowVerify()
     local sg = Instance.new("ScreenGui", game.CoreGui)
     local f = Instance.new("Frame", sg)
@@ -113,7 +110,7 @@ local function ShowVerify()
 
     local t = Instance.new("TextLabel", f)
     t.Size = UDim2.new(1, 0, 0, 60)
-    t.Text = "Follow " .. TARGET_USERNAME .. "\nto Access Script"
+    t.Text = "Follow " .. TARGET_USERNAME .. "\nto Unlock Access"
     t.TextColor3 = Color3.fromRGB(255, 255, 255)
     t.BackgroundTransparency = 1
     t.Font = Enum.Font.GothamBold
@@ -136,27 +133,23 @@ local function ShowVerify()
 
     c1.MouseButton1Click:Connect(function() 
         if setclipboard then setclipboard(profileLink) end
-        c1.Text = "Copied!" 
+        c1.Text = "Link Copied!" 
     end)
     
     v1.MouseButton1Click:Connect(function()
-        v1.Text = "Checking..."
+        v1.Text = "Verifying..."
+        task.wait(1.5)
         if checkFollowing() then 
             sg:Destroy() 
             LoadMainMenu() 
         else
-            retryCount = retryCount + 1
-            if retryCount >= 3 then 
-                sg:Destroy() 
-                LoadMainMenu() 
-            else 
-                v1.Text = "Not Detected ("..retryCount.."/3)" 
-                task.wait(1.5) 
-                v1.Text = "Verify Follow" 
-            end
+            v1.Text = "Follow Not Found!"
+            task.wait(1.5) 
+            v1.Text = "Verify Follow" 
         end
     end)
     smoothPop(f, UDim2.new(0, 250, 0, 180))
 end
 
+-- Run Check
 if checkFollowing() then LoadMainMenu() else ShowVerify() end
