@@ -1,5 +1,4 @@
--- PLAYTEST SCRIPT [α1.0.6]
--- REWORKED FOR STABILITY
+-- PLAYTEST SCRIPT [α1.2.0]
 local OWNER_ID = 8816493943 
 local TARGET_USERNAME = "derWolfderwutet"
 
@@ -11,144 +10,176 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local profileLink = "https://www.roblox.com/users/" .. OWNER_ID .. "/profile"
 
--- 1. STRENGTHENED FOLLOW CHECK
-local function checkFollowing()
+-- UI COLORS & THEME
+local Theme = {
+    Main = Color3.fromRGB(10, 10, 10),
+    Accent = Color3.fromRGB(170, 0, 255),
+    Text = Color3.fromRGB(255, 255, 255),
+    Button = Color3.fromRGB(25, 25, 25),
+    Hover = Color3.fromRGB(40, 40, 40)
+}
+
+-- 1. STABLE VERIFICATION
+local function isFollowing()
     if player.UserId == OWNER_ID then return true end
-    
     local success, result = pcall(function()
-        -- Method A: Check Relationship Status (Fastest)
-        local url1 = "https://friends.roproxy.com/v1/users/" .. player.UserId .. "/friends/statuses?userIds=" .. OWNER_ID
-        local res1 = game:HttpGet(url1)
-        local data1 = HttpService:JSONDecode(res1)
-        
-        if data1 and data1.data and #data1.data > 0 then
-            return true
-        end
-
-        -- Method B: Check Recent Followers (Backup)
-        local url2 = "https://friends.roproxy.com/v1/users/" .. OWNER_ID .. "/followers?limit=20&sortOrder=Desc"
-        local res2 = game:HttpGet(url2)
-        local data2 = HttpService:JSONDecode(res2)
-
-        if data2 and data2.data then
-            for _, follower in pairs(data2.data) do
-                if follower.id == player.UserId then return true end
+        local url = "https://friends.roproxy.com/v1/users/" .. player.UserId .. "/followings?limit=100"
+        local data = HttpService:JSONDecode(game:HttpGet(url))
+        if data and data.data then
+            for _, v in pairs(data.data) do
+                if v.id == OWNER_ID then return true end
             end
         end
-        
         return false
     end)
-    
     return success and result or false
 end
 
--- 2. UI UTILS
-local function smoothPop(obj, targetSize)
+-- 2. ANIMATION UTILS
+local function SmoothPop(obj)
     obj.Size = UDim2.new(0, 0, 0, 0)
-    TweenService:Create(obj, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Size = targetSize}):Play()
+    obj.Visible = true
+    local targetSize = (obj.Name == "MainFrame") and UDim2.new(0, 280, 0, 320) or UDim2.new(0, 300, 0, 220)
+    TweenService:Create(obj, TweenInfo.new(0.6, Enum.EasingStyle.Back), {Size = targetSize}):Play()
 end
 
--- 3. MAIN MENU
-local function LoadMainMenu()
+-- 3. INTERFACE BUILDER
+local function createButton(parent, text, pos, callback)
+    local btn = Instance.new("TextButton")
+    btn.Name = text
+    btn.Parent = parent
+    btn.Size = UDim2.new(0.9, 0, 0, 45)
+    btn.Position = pos
+    btn.BackgroundColor3 = Theme.Button
+    btn.BorderSizePixel = 0
+    btn.Text = text
+    btn.TextColor3 = Theme.Text
+    btn.AutoButtonColor = false
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 14
+    
+    local corner = Instance.new("UICorner", btn)
+    corner.CornerRadius = UDim.new(0, 8)
+    
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Theme.Accent
+    stroke.Thickness = 1.2
+    stroke.Transparency = 0.6
+
+    -- Immersive Hover Effects
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Hover}):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 0}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Button}):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 0.6}):Play()
+    end)
+    
+    btn.MouseButton1Click:Connect(function() callback(btn) end)
+    return btn
+end
+
+-- 4. MAIN HUB
+local function LoadMainScript()
     local sg = Instance.new("ScreenGui", game.CoreGui)
-    sg.Name = "PlaytestGui"
-    local f = Instance.new("Frame", sg)
-    f.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    f.Position = UDim2.new(0.5, -105, 0.5, -130)
-    f.Size = UDim2.new(0, 210, 0, 260)
-    Instance.new("UICorner", f)
-    local s = Instance.new("UIStroke", f) s.Color = Color3.fromRGB(170, 0, 255) s.Thickness = 2
+    local f = Instance.new("Frame")
+    f.Name = "MainFrame"
+    f.Parent = sg
+    f.BackgroundColor3 = Theme.Main
+    f.BackgroundTransparency = 0.15
+    f.Position = UDim2.new(0.5, -140, 0.5, -160)
+    f.Active = true
+    f.Draggable = true
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 12)
+    local s = Instance.new("UIStroke", f) s.Color = Theme.Accent s.Thickness = 2
 
-    local t = Instance.new("TextLabel", f)
-    t.Size = UDim2.new(1, 0, 0, 40)
-    t.BackgroundColor3 = Color3.fromRGB(100, 0, 180)
-    t.Text = "PLAYTEST v1.0.6"
-    t.TextColor3 = Color3.fromRGB(255, 255, 255)
-    t.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", t)
+    local title = Instance.new("TextLabel", f)
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Text = "PLAYTEST v1.2.0"
+    title.TextColor3 = Theme.Accent
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 18
 
-    local function b(txt, pos, cb)
-        local btn = Instance.new("TextButton", f)
-        btn.Size = UDim2.new(0.85, 0, 0, 35)
-        btn.Position = pos
-        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        btn.Text = txt
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Instance.new("UICorner", btn)
-        btn.MouseButton1Click:Connect(function() cb(btn) end)
-    end
-
-    -- REWORKED AUTO TREATS (Scans Workspace better)
-    b("Auto Treats: OFF", UDim2.new(0.075, 0, 0.25, 0), function(btn)
-        _G.Collect = not _G.Collect
-        btn.Text = _G.Collect and "Auto Treats: ON" or "Auto Treats: OFF"
-        btn.BackgroundColor3 = _G.Collect and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(180, 50, 50)
+    createButton(f, "Auto Treats: OFF", UDim2.new(0.05, 0, 0.25, 0), function(btn)
+        _G.TreatLoop = not _G.TreatLoop
+        btn.Text = _G.TreatLoop and "Auto Treats: ON" or "Auto Treats: OFF"
+        btn.TextColor3 = _G.TreatLoop and Color3.fromRGB(0, 255, 150) or Theme.Text
         
         task.spawn(function()
-            while _G.Collect do
+            while _G.TreatLoop do
                 pcall(function()
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if not _G.Collect then break end
-                        if (v.Name:find("Treat") or v.Name:find("Bone")) and v:IsA("BasePart") then
-                            player.Character.HumanoidRootPart.CFrame = v.CFrame
-                            task.wait(0.2)
+                    local folder = Workspace:FindFirstChild("SpawnedDogTreats", true)
+                    local items = folder and folder:GetChildren() or {}
+                    for _, v in pairs(items) do
+                        if not _G.TreatLoop then break end
+                        if v:IsA("BasePart") or v:IsA("Model") then
+                            local target = v:IsA("Model") and (v.PrimaryPart or v:GetModelCFrame()) or v
+                            player.Character.HumanoidRootPart.CFrame = target.CFrame
+                            task.wait(0.3)
                         end
                     end
                 end)
-                task.wait(0.1)
+                task.wait(0.5)
             end
         end)
     end)
 
-    b("Speed (100)", UDim2.new(0.075, 0, 0.45, 0), function() player.Character.Humanoid.WalkSpeed = 100 end)
-    b("Teleport Shop", UDim2.new(0.075, 0, 0.65, 0), function() 
-        local shop = Workspace:FindFirstChild("Shop", true) or Workspace:FindFirstChild("Store", true)
-        if shop then player.Character.HumanoidRootPart.CFrame = shop:GetModelCFrame() or shop.CFrame end
-    end)
-
-    smoothPop(f, UDim2.new(0, 210, 0, 260))
-    f.Draggable = true
-    f.Active = true
-end
-
--- 4. VERIFICATION SCREEN
-local function ShowVerify()
-    local sg = Instance.new("ScreenGui", game.CoreGui)
-    local f = Instance.new("Frame", sg)
-    f.Size = UDim2.new(0, 250, 0, 180)
-    f.Position = UDim2.new(0.5, -125, 0.5, -90)
-    f.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Instance.new("UICorner", f)
-    local s = Instance.new("UIStroke", f) s.Color = Color3.fromRGB(170, 0, 255) s.Thickness = 2
-
-    local t = Instance.new("TextLabel", f)
-    t.Size = UDim2.new(1, 0, 0, 60)
-    t.Text = "ACCESS DENIED\nFollow " .. TARGET_USERNAME
-    t.TextColor3 = Color3.fromRGB(255, 255, 255)
-    t.BackgroundTransparency = 1
-    t.Font = Enum.Font.GothamBold
-
-    local v1 = Instance.new("TextButton", f)
-    v1.Size = UDim2.new(0.8, 0, 0, 45)
-    v1.Position = UDim2.new(0.1, 0, 0.5, 0)
-    v1.Text = "Verify Follow"
-    v1.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-    v1.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Instance.new("UICorner", v1)
-
-    v1.MouseButton1Click:Connect(function()
-        v1.Text = "Checking..."
-        if checkFollowing() then 
-            sg:Destroy() 
-            LoadMainMenu() 
-        else
-            v1.Text = "Failed! Follow & Wait 10s"
-            task.wait(2)
-            v1.Text = "Verify Follow"
+    createButton(f, "Teleport Shop", UDim2.new(0.05, 0, 0.45, 0), function()
+        local shop = Workspace:FindFirstChild("ShopPart", true) or Workspace:FindFirstChild("SimonShopStand", true)
+        if shop and player.Character then
+            player.Character.HumanoidRootPart.CFrame = (shop:IsA("Model") and shop:GetModelCFrame() or shop.CFrame) + Vector3.new(0, 3, 0)
         end
     end)
-    smoothPop(f, UDim2.new(0, 250, 0, 180))
+
+    createButton(f, "Unload Script", UDim2.new(0.05, 0, 0.75, 0), function() sg:Destroy() _G.TreatLoop = false end)
+
+    SmoothPop(f)
 end
 
--- Launch
-if checkFollowing() then LoadMainMenu() else ShowVerify() end
+-- 5. VERIFICATION UI
+local function ShowLock()
+    local sg = Instance.new("ScreenGui", game.CoreGui)
+    local f = Instance.new("Frame")
+    f.Name = "LockFrame"
+    f.Parent = sg
+    f.BackgroundColor3 = Theme.Main
+    f.BackgroundTransparency = 0.1
+    f.Position = UDim2.new(0.5, -150, 0.5, -110)
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 15)
+    Instance.new("UIStroke", f).Color = Theme.Accent
+
+    local lbl = Instance.new("TextLabel", f)
+    lbl.Size = UDim2.new(1, 0, 0, 70)
+    lbl.Text = "ACCESS RESTRICTED\nFollow @" .. TARGET_USERNAME
+    lbl.TextColor3 = Theme.Text
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 16
+
+    createButton(f, "Copy Profile Link", UDim2.new(0.05, 0, 0.4, 0), function(btn)
+        if setclipboard then
+            setclipboard(profileLink)
+            btn.Text = "Link Copied!"
+            task.wait(2)
+            btn.Text = "Copy Profile Link"
+        end
+    end)
+
+    createButton(f, "Verify Access", UDim2.new(0.05, 0, 0.65, 0), function(btn)
+        btn.Text = "Verifying..."
+        if isFollowing() then
+            sg:Destroy()
+            LoadMainScript()
+        else
+            btn.Text = "Not Detected!"
+            task.wait(2)
+            btn.Text = "Verify Access"
+        end
+    end)
+
+    SmoothPop(f)
+end
+
+if isFollowing() then LoadMainScript() else ShowLock() end
